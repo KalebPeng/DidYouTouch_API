@@ -39,7 +39,7 @@ public interface UserInfoRepository extends JpaRepository<UserInfo,Integer>
     @Query("SELECT COUNT(u) FROM UserInfo u WHERE u.isActive = true")
     Long countActiveUsers();
 
-    // 自定义查询：根据创建时间范围查找
+    // 自定义查询：根据创建时间范围查找1
     @Query("SELECT u FROM UserInfo u WHERE u.createdAt BETWEEN :startDate AND :endDate")
     List<UserInfo> findByCreatedAtBetween(@Param("startDate") java.time.LocalDateTime startDate,
                                           @Param("endDate") java.time.LocalDateTime endDate);
