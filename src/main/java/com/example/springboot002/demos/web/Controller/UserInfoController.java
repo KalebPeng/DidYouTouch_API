@@ -1,7 +1,7 @@
-package com.example.springboot002.demos.web.controller;
+package com.example.springboot002.demos.web.Controller;
 
 import com.example.springboot002.demos.web.Entity.UserInfo;
-import com.example.springboot002.demos.web.service.UserInfoService;
+import com.example.springboot002.demos.web.Service.UserInfoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
