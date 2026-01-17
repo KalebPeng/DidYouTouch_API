@@ -1,4 +1,4 @@
-package com.example.springboot002.demos.web.service;
+package com.example.springboot002.demos.web.Service;
 
 import com.example.springboot002.demos.web.Entity.UserInfo;
 import com.example.springboot002.demos.web.Repository.UserInfoRepository;
