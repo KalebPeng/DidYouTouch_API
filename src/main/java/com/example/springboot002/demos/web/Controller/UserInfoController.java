@@ -149,4 +149,5 @@ public class UserInfoController {
         userInfoService.updateLastLogin(id);
         return ResponseEntity.ok().build();
     }
+    //test
 }
