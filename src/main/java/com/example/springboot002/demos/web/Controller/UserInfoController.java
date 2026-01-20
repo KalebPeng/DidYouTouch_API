@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/userInfo")
 @Tag(name = "用户管理", description = "用户相关的CRUD操作")
 public class UserInfoController {
 

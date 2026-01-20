@@ -35,13 +35,13 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-    //获取用户公开信息（通过用户ID）
-    @Operation(summary = "根据ID查找用户", description = "根据ID查找用户")
-    @GetMapping("/ID/{ID}")
+    //获取用户信息（通过用户ID）
+    @Operation(summary = "根据UserID查找用户", description = "根据UserID查找用户")
+    @GetMapping("/ID/{userID}")
     public ResponseEntity<?> getUserByID(
             @Parameter(description = "ID", required = true)
-            @PathVariable UUID ID) {
-        User user = userService.findById(ID);
+            @PathVariable UUID userID) {
+        User user = userService.findById(userID);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ErrorResponse("NOT_FOUND", "ID不存在"));
@@ -59,8 +59,8 @@ public class UserController {
     }
 
     //更新用户基础信息
-    @Operation(summary = "根据ID查找用户", description = "根据ID查找用户")
-    @GetMapping("/ID/{ID}")
+    @Operation(summary = "更新用户基础信息", description = "更新用户基础信息")
+    @PutMapping("/ID/{ID}")
     public ResponseEntity<?> updateUser(
             @Parameter(description = "ID", required = true)
             @PathVariable UUID ID,
