@@ -1,0 +1,286 @@
+package com.example.springboot002.demos.web.Controller;
+
+import com.example.springboot002.demos.web.DTO.Request.*;
+import com.example.springboot002.demos.web.DTO.Response.*;
+import com.example.springboot002.demos.web.Entity.User;
+import com.example.springboot002.demos.web.Entity.LoginSession;
+import com.example.springboot002.demos.web.Service.UserService;
+import com.example.springboot002.demos.web.Service.LoginSessionService;
+import com.example.springboot002.demos.web.Util.JwtUtil;
+import com.example.springboot002.demos.web.Util.PasswordUtil;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "用户认证相关接口")
+public class AuthController {
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private LoginSessionService loginSessionService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private PasswordUtil passwordUtil;
+
+    @Operation(summary = "用户注册")
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+        try {
+            // 检查邮箱是否已存在
+            if (userService.existsByEmail(request.getEmail())) {
+                return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("EMAIL_EXISTS", "该邮箱已被注册"));
+            }
+
+            // 检查手机号是否已存在（如果提供）
+            if (request.getPhone() != null && userService.existsByPhone(request.getPhone())) {
+                return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("PHONE_EXISTS", "该手机号已被注册"));
+            }
+
+            // 创建新用户
+            User newUser = new User();
+            newUser.setEmail(request.getEmail());
+            newUser.setPhone(request.getPhone());
+            newUser.setNickname(request.getNickname());
+            if (request.getGender() != null) {
+                try {
+                    newUser.setGender(User.Gender.valueOf(request.getGender().toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    newUser.setGender(User.Gender.unknown);
+                }
+            } else {
+                newUser.setGender(User.Gender.unknown);
+            }
+            newUser.setBirthdate(request.getBirthdate());
+
+            // 设置密码（使用工具类加密）
+            String hashedPassword = passwordUtil.hashPassword(request.getPassword());
+            newUser.setPasswordHash(hashedPassword);
+
+            // 设置默认值
+            newUser.setIsActive(true);
+            newUser.setIsVerified(false);
+            newUser.setMfaEnabled(false);
+            newUser.setFailedLoginAttempts(0);
+            newUser.setAccountType(User.AccountType.standard);
+            newUser.setLanguage("zh-CN");
+            newUser.setTimezone("Asia/Shanghai");
+            newUser.setSalt(UUID.randomUUID().toString());
+
+            User savedUser = userService.createUser(newUser);
+
+            // 生成JWT令牌
+            String token = jwtUtil.generateToken(savedUser.getId(), savedUser.getEmail());
+
+            // 返回注册成功响应
+            RegisterResponse response = new RegisterResponse(
+                savedUser.getId(),
+                savedUser.getEmail(),
+                savedUser.getNickname(),
+                token,
+                "注册成功"
+            );
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("REGISTER_ERROR", "注册失败: " + e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "用户登录")
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        try {
+            // 查找用户
+            User user = userService.findByEmail(request.getEmail());
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("INVALID_CREDENTIALS", "邮箱或密码错误"));
+            }
+
+            // 检查账户是否被锁定
+            if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("ACCOUNT_LOCKED", "账户已被锁定，请稍后再试"));
+            }
+
+            // 检查账户是否激活
+            if (!user.getIsActive()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ErrorResponse("ACCOUNT_INACTIVE", "账户未激活"));
+            }
+
+            // 验证密码
+            if (!passwordUtil.checkPassword(request.getPassword(), user.getPasswordHash())) {
+                // 增加失败登录次数
+                userService.incrementFailedLoginAttempts(user.getId());
+
+                // 检查是否需要锁定账户（失败5次锁定30分钟）
+                if (user.getFailedLoginAttempts() >= 4) {
+                    userService.lockAccount(user.getId(), 30);
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ErrorResponse("ACCOUNT_LOCKED", "登录失败次数过多，账户已被锁定30分钟"));
+                }
+
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("INVALID_CREDENTIALS", "邮箱或密码错误"));
+            }
+
+            // 重置失败登录次数
+            userService.resetFailedLoginAttempts(user.getId());
+
+            // 更新最后登录时间
+            userService.updateLastLogin(user.getId());
+
+            // 生成JWT令牌
+            String token = jwtUtil.generateToken(user.getId(), user.getEmail());
+
+            // 创建登录会话
+            LoginSession session = loginSessionService.createSession(
+                user,
+                token,
+                request.getDeviceId(),
+                request.getDeviceType(),
+                request.getDeviceName(),
+                request.getDeviceModel()
+            );
+
+            // 返回登录成功响应
+            LoginResponse response = new LoginResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getNickname(),
+                user.getAvatarUrl(),
+                userService.isAdmin(user),
+                token,
+                session.getExpiresAt(),
+                "登录成功"
+            );
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("LOGIN_ERROR", "登录失败: " + e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "用户登出")
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authHeader) {
+        try {
+            // 从header中提取token
+            String token = authHeader.replace("Bearer ", "");
+
+            // 验证token
+            String email = jwtUtil.extractEmail(token);
+            if (!jwtUtil.validateToken(token, email)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("INVALID_TOKEN", "无效的令牌"));
+            }
+
+            // 撤销会话
+            loginSessionService.revokeSession(token);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "登出成功");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("LOGOUT_ERROR", "登出失败: " + e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "修改密码")
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(
+            @RequestHeader("Authorization") String authHeader,
+            @Valid @RequestBody PasswordChangeRequest request) {
+        try {
+            // 从token中获取用户信息
+            String token = authHeader.replace("Bearer ", "");
+            String email = jwtUtil.extractEmail(token);
+            if (!jwtUtil.validateToken(token, email)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("INVALID_TOKEN", "无效的令牌"));
+            }
+
+            UUID userId = jwtUtil.extractUserId(token);
+            User user = userService.findById(userId);
+
+            // 验证旧密码
+            if (!passwordUtil.checkPassword(request.getOldPassword(), user.getPasswordHash())) {
+                return ResponseEntity.badRequest()
+                    .body(new ErrorResponse("INVALID_PASSWORD", "旧密码错误"));
+            }
+
+            // 更新密码
+            String newHashedPassword = passwordUtil.hashPassword(request.getNewPassword());
+            userService.updatePassword(user.getId(), newHashedPassword);
+
+            // 撤销所有会话（安全考虑）
+            loginSessionService.revokeAllUserSessions(user.getId());
+
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "密码修改成功，请重新登录");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("PASSWORD_CHANGE_ERROR", "密码修改失败: " + e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "刷新令牌")
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@RequestHeader("Authorization") String authHeader) {
+        try {
+            String oldToken = authHeader.replace("Bearer ", "");
+
+            // 验证旧token
+            String email = jwtUtil.extractEmail(oldToken);
+            if (!jwtUtil.validateToken(oldToken, email)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse("INVALID_TOKEN", "无效的令牌"));
+            }
+
+            // 提取用户信息
+            UUID userId = jwtUtil.extractUserId(oldToken);
+
+            // 生成新token
+            String newToken = jwtUtil.generateToken(userId, email);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("token", newToken);
+            response.put("message", "令牌刷新成功");
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("TOKEN_REFRESH_ERROR", "令牌刷新失败: " + e.getMessage()));
+        }
+    }
+}

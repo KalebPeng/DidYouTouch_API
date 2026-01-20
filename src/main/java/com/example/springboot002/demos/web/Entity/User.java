@@ -8,6 +8,7 @@ import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.net.InetAddress;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -30,8 +31,6 @@ import javax.persistence.*;
                 @UniqueConstraint(name = "uk_users_username", columnNames = "username")
         })
 @Data
-@EqualsAndHashCode(exclude = {"loginSessions", "oauthProviders", "devices"})
-@ToString(exclude = {"passwordHash", "salt", "mfaSecret", "loginSessions", "oauthProviders", "devices"})
 public class User {
     @Id
     @GeneratedValue(generator = "UUID")
@@ -55,8 +54,8 @@ public class User {
     @Column(name = "password_hash", length = 255, nullable = false)
     private String passwordHash;
 
-    @Column(name = "salt", length = 50, nullable = false)
-    private String salt;
+    @Column(name = "salt", length = 50)
+    private String salt = UUID.randomUUID().toString();
 
     @Column(name = "nickname", length = 50)
     private String nickname;
@@ -66,7 +65,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "gender", length = 10, columnDefinition = "VARCHAR(10) DEFAULT 'unknown'")
-    private Gender gender = Gender.UNKNOWN;
+    private Gender gender = Gender.unknown;
 
     @Column(name = "birthdate")
     private LocalDate birthdate;
@@ -82,7 +81,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "account_type", length = 20, columnDefinition = "VARCHAR(20) DEFAULT 'standard'")
-    private AccountType accountType = AccountType.STANDARD;
+    private AccountType accountType = AccountType.standard;
 
     @Column(name = "failed_login_attempts", nullable = false, columnDefinition = "INTEGER DEFAULT 0")
     private Integer failedLoginAttempts = 0;
@@ -93,7 +92,7 @@ public class User {
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
 
-    @Column(name = "last_login_ip", columnDefinition = "inet")
+    @Column(name = "last_login_ip", length = 40)
     private String lastLoginIp;
 
     @Column(name = "mfa_enabled", nullable = false, columnDefinition = "BOOLEAN DEFAULT false")
@@ -108,8 +107,7 @@ public class User {
     @Column(name = "timezone", length = 50, columnDefinition = "VARCHAR(50) DEFAULT 'Asia/Shanghai'")
     private String timezone = "Asia/Shanghai";
 
-    @Type(type = "json")
-    @Column(name = "notification_preferences", columnDefinition = "jsonb")
+    @Column(name = "notification_preferences", columnDefinition = "TEXT")
     private String notificationPreferences = "{\"email\": true, \"push\": true, \"daily_report\": true}";
 
     @CreationTimestamp
@@ -143,11 +141,13 @@ public class User {
     //private UserPreferences preferences;
 
     public enum Gender {
-        MALE, FEMALE, UNKNOWN
+        male, female, unknown
     }
 
     public enum AccountType {
-        STANDARD, PREMIUM, ADMIN
+        standard,
+        premium,
+        admin
     }
 
     @PrePersist

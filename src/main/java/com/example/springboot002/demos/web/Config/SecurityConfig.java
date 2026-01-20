@@ -63,6 +63,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         "/",                    // 首页
                         "/api/health",          // 健康检查
                         "/api/info",            // 应用信息
+                        "/api/auth/register",   // 用户注册
+                        "/api/auth/login",      // 用户登录
                         "/login",               // 登录页面
                         "/logout",              // 登出
                         "/error"                // 错误页面

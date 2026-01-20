@@ -53,9 +53,11 @@ public class UserInfo {
     @Column(name = "avatar_url", length = 255)
     private String avatarUrl;
 
+    @Builder.Default
     @Column(name = "is_active")
     private Boolean isActive = true;
 
+    @Builder.Default
     @Column(name = "is_admin")
     private Boolean isAdmin = false;
 
