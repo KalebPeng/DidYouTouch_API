@@ -46,4 +46,10 @@ public interface UserRepository extends JpaRepository<User,UUID>
 
     @Query("SELECT u FROM User u WHERE u.accountType = 'ADMIN'")
     List<User> findAllAdmins();
+
+    // 查找所有活跃用户
+    List<User> findByIsActiveTrue();
+
+    // 统计活跃用户数量
+    long countByIsActiveTrue();
 }

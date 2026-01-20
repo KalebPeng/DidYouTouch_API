@@ -1,9 +1,11 @@
 package com.example.springboot002.demos.web.DTO.Request;
 
+import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
+@Data
 public class PasswordChangeRequest {
     @NotBlank(message = "原密码不能为空")
     private String oldPassword;
