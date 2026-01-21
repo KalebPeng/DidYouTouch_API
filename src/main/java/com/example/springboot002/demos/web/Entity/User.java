@@ -45,10 +45,10 @@ public class User {
     @Column(name = "username", length = 50, unique = true)
     private String username;
 
-    @Column(name = "email", length = 255, nullable = false, unique = true)
+    @Column(name = "email", length = 255, unique = true)
     private String email;
 
-    @Column(name = "phone", length = 20, unique = true)
+    @Column(name = "phone", length = 20, nullable = false, unique = true)
     private String phone;
 
     @Column(name = "password_hash", length = 255, nullable = false)
