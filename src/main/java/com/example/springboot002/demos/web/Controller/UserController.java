@@ -1,7 +1,6 @@
 package com.example.springboot002.demos.web.Controller;
 
-import com.example.springboot002.demos.web.DTO.Request.UpdateUserRequest;
-import com.example.springboot002.demos.web.DTO.Response.ErrorResponse;
+import com.example.springboot002.demos.web.DTO.Response.Response;
 import com.example.springboot002.demos.web.Entity.User;
 import com.example.springboot002.demos.web.Service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,13 +23,10 @@ public class UserController {
     //根据邮箱查询用户信息
     @Operation(summary = "根据邮箱查找用户", description = "根据邮箱查找用户")
     @GetMapping("/email/{email}")
-    public ResponseEntity<?> getUserByEmail(
-            @Parameter(description = "邮箱", required = true)
-            @PathVariable String email) {
+    public ResponseEntity<?> getUserByEmail(@Parameter(description = "邮箱", required = true) @PathVariable String email) {
         User user = userService.findByEmail(email);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ErrorResponse("NOT_FOUND", "邮箱不存在"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response("NOT_FOUND", "邮箱不存在"));
         }
         return ResponseEntity.ok(user);
     }
@@ -38,13 +34,10 @@ public class UserController {
     //获取用户信息（通过用户ID）
     @Operation(summary = "根据UserID查找用户", description = "根据UserID查找用户")
     @GetMapping("/ID/{userID}")
-    public ResponseEntity<?> getUserByID(
-            @Parameter(description = "ID", required = true)
-            @PathVariable UUID userID) {
+    public ResponseEntity<?> getUserByID(@Parameter(description = "ID", required = true) @PathVariable UUID userID) {
         User user = userService.findById(userID);
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ErrorResponse("NOT_FOUND", "ID不存在"));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response("NOT_FOUND", "ID不存在"));
         }
 
         User userInfo = new User();
@@ -61,32 +54,17 @@ public class UserController {
     //更新用户基础信息
     @Operation(summary = "更新用户基础信息", description = "更新用户基础信息")
     @PutMapping("/ID/{ID}")
-    public ResponseEntity<?> updateUser(
-            @Parameter(description = "ID", required = true)
-            @PathVariable UUID ID,
-            @Valid @RequestBody User request) {
-        User user = userService.findById(ID);
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ErrorResponse("NOT_FOUND", "ID不存在"));
-        }
+    public ResponseEntity<?> updateUser(@Parameter(description = "ID", required = true) @PathVariable UUID ID, @Valid @RequestBody User request) {
         try {
             // 更新用户信息
-            User updatedUser = userService.updateUser(ID, request);
+            userService.updateUser(ID, request);
 
-            // 返回更新后的用户信息（仅返回公共字段）
-            UpdateUserRequest response = new UpdateUserRequest(
-                    updatedUser.getId(),
-                    updatedUser.getUsername(),
-                    updatedUser.getNickname(),
-                    updatedUser.getAvatarUrl(),
-                    updatedUser.getAccountType()
-            );
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(new Response("SUCCESS", "更新成功"));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("UPDATE_ERROR", "更新失败: " + e.getMessage()));
+            if (e.getMessage().contains("ID不存在")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response("NOT_FOUND", "ID不存在"));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new Response("UPDATE_ERROR", "更新失败: " + e.getMessage()));
         }
     }
 }
