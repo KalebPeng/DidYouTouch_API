@@ -20,6 +20,7 @@ import java.util.UUID;
 @RequestMapping("/api/users") // 添加基础路径映射
 public class UserController {
 
+
     @Autowired
     private UserService userService;
     //根据邮箱查询用户信息
