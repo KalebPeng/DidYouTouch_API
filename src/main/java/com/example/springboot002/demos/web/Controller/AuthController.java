@@ -4,6 +4,8 @@ import com.example.springboot002.demos.web.DTO.Request.*;
 import com.example.springboot002.demos.web.DTO.Response.*;
 import com.example.springboot002.demos.web.Entity.User;
 import com.example.springboot002.demos.web.Entity.LoginSession;
+import com.example.springboot002.demos.web.Service.AliSmsService;
+import com.example.springboot002.demos.web.Service.SmsCodeService;
 import com.example.springboot002.demos.web.Service.UserService;
 import com.example.springboot002.demos.web.Service.LoginSessionService;
 import com.example.springboot002.demos.web.Util.JwtUtil;
@@ -37,6 +39,12 @@ public class AuthController {
 
     @Autowired
     private PasswordUtil passwordUtil;
+
+    @Autowired
+    private AliSmsService aliSmsService;
+
+    @Autowired
+    private SmsCodeService smsCodeService;
 
     @Operation(summary = "用户注册")
     @PostMapping("/register")
@@ -282,5 +290,98 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new Response("TOKEN_REFRESH_ERROR", "令牌刷新失败: " + e.getMessage()));
         }
+    }
+
+    /**
+     * 发送短信验证码
+     */
+    @PostMapping("/send-verify-code")
+    public Map<String, Object> sendVerifyCode(@RequestParam String phoneNumber) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // 1. 验证手机号格式
+            if (!isValidPhoneNumber(phoneNumber)) {
+                result.put("success", false);
+                result.put("message", "手机号格式不正确");
+                return result;
+            }
+
+            // 2. 检查是否可以发送（防止频繁发送）
+            if (!smsCodeService.canSend(phoneNumber)) {
+                long remainingTime = smsCodeService.getRemainingSendTime(phoneNumber);
+                result.put("success", false);
+                result.put("message", "验证码发送过于频繁，请" + remainingTime + "秒后再试");
+                result.put("remainingTime", remainingTime);
+                return result;
+            }
+
+            // 3. 生成验证码
+            String code = smsCodeService.generateCode();
+
+            // 4. 发送短信
+            boolean sent = aliSmsService.sendVerifyCode(phoneNumber, code);
+
+            if (sent) {
+                // 5. 保存验证码到 Redis
+                smsCodeService.saveCode(phoneNumber, code);
+
+                result.put("success", true);
+                result.put("message", "验证码发送成功");
+                result.put("expireTime", 300); // 5分钟
+            } else {
+                result.put("success", false);
+                result.put("message", "验证码发送失败，请稍后重试");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", "系统错误: " + e.getMessage());
+        }
+
+        return result;
+    }
+
+    /**
+     * 验证验证码
+     */
+    @PostMapping("/verify-code")
+    public Map<String, Object> verifyCode(@RequestParam String phoneNumber,
+                                          @RequestParam String code) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // 从 Redis 验证
+            boolean isValid = smsCodeService.verifyCode(phoneNumber, code);
+
+            if (isValid) {
+                result.put("success", true);
+                result.put("message", "验证成功");
+            } else {
+                int remainingTimes = smsCodeService.getRemainingRetryTimes(phoneNumber);
+                result.put("success", false);
+                if (remainingTimes > 0) {
+                    result.put("message", "验证码错误，还可以尝试" + remainingTimes + "次");
+                    result.put("remainingTimes", remainingTimes);
+                } else {
+                    result.put("message", "验证码错误或已过期");
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", "系统错误: " + e.getMessage());
+        }
+
+        return result;
+    }
+
+    /**
+     * 验证手机号格式
+     */
+    private boolean isValidPhoneNumber(String phoneNumber) {
+        return phoneNumber != null && phoneNumber.matches("^1[3-9]\\d{9}$");
     }
 }
