@@ -40,6 +40,8 @@ dependencies {
     implementation 'com.aliyun:tea:1.2.3'
     implementation 'com.aliyun:tea-console:0.0.1'
     implementation 'com.aliyun:credentials-java:0.3.2'
+    //邮件发送
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
     //redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.apache.commons:commons-pool2:2.11.1'

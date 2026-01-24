@@ -4,10 +4,7 @@ import com.example.springboot002.demos.web.DTO.Request.*;
 import com.example.springboot002.demos.web.DTO.Response.*;
 import com.example.springboot002.demos.web.Entity.User;
 import com.example.springboot002.demos.web.Entity.LoginSession;
-import com.example.springboot002.demos.web.Service.AliSmsService;
-import com.example.springboot002.demos.web.Service.SmsCodeService;
-import com.example.springboot002.demos.web.Service.UserService;
-import com.example.springboot002.demos.web.Service.LoginSessionService;
+import com.example.springboot002.demos.web.Service.*;
 import com.example.springboot002.demos.web.Util.JwtUtil;
 import com.example.springboot002.demos.web.Util.PasswordUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,6 +43,9 @@ public class AuthController {
     @Autowired
     private SmsCodeService smsCodeService;
 
+    @Autowired
+    private EmailService emailService;
+
     @Operation(summary = "用户注册")
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
@@ -53,13 +53,13 @@ public class AuthController {
             // 检查邮箱是否已存在
             if (userService.existsByEmail(request.getEmail())) {
                 return ResponseEntity.badRequest()
-                    .body(new Response("EMAIL_EXISTS", "该邮箱已被注册"));
+                        .body(new Response("EMAIL_EXISTS", "该邮箱已被注册"));
             }
 
             // 检查手机号是否已存在（如果提供）
             if (request.getPhone() != null && userService.existsByPhone(request.getPhone())) {
                 return ResponseEntity.badRequest()
-                    .body(new Response("PHONE_EXISTS", "该手机号已被注册"));
+                        .body(new Response("PHONE_EXISTS", "该手机号已被注册"));
             }
 
             // 创建新用户
@@ -99,18 +99,18 @@ public class AuthController {
 
             // 返回注册成功响应
             RegisterResponse response = new RegisterResponse(
-                savedUser.getId(),
-                savedUser.getEmail(),
-                savedUser.getNickname(),
-                token,
-                "注册成功"
+                    savedUser.getId(),
+                    savedUser.getEmail(),
+                    savedUser.getNickname(),
+                    token,
+                    "注册成功"
             );
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new Response("REGISTER_ERROR", "注册失败: " + e.getMessage()));
+                    .body(new Response("REGISTER_ERROR", "注册失败: " + e.getMessage()));
         }
     }
 
@@ -122,19 +122,19 @@ public class AuthController {
             User user = userService.findByEmail(request.getEmail());
             if (user == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new Response("INVALID_CREDENTIALS", "邮箱或密码错误"));
+                        .body(new Response("INVALID_CREDENTIALS", "邮箱或密码错误"));
             }
 
             // 检查账户是否被锁定
             if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new Response("ACCOUNT_LOCKED", "账户已被锁定，请稍后再试"));
+                        .body(new Response("ACCOUNT_LOCKED", "账户已被锁定，请稍后再试"));
             }
 
             // 检查账户是否激活
             if (!user.getIsActive()) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new Response("ACCOUNT_INACTIVE", "账户未激活"));
+                        .body(new Response("ACCOUNT_INACTIVE", "账户未激活"));
             }
 
             // 验证密码
@@ -146,11 +146,11 @@ public class AuthController {
                 if (user.getFailedLoginAttempts() >= 4) {
                     userService.lockAccount(user.getId(), 30);
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new Response("ACCOUNT_LOCKED", "登录失败次数过多，账户已被锁定30分钟"));
+                            .body(new Response("ACCOUNT_LOCKED", "登录失败次数过多，账户已被锁定30分钟"));
                 }
 
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new Response("INVALID_CREDENTIALS", "邮箱或密码错误"));
+                        .body(new Response("INVALID_CREDENTIALS", "邮箱或密码错误"));
             }
 
             // 重置失败登录次数
@@ -164,31 +164,31 @@ public class AuthController {
 
             // 创建登录会话
             LoginSession session = loginSessionService.createSession(
-                user,
-                token,
-                request.getDeviceId(),
-                request.getDeviceType(),
-                request.getDeviceName(),
-                request.getDeviceModel()
+                    user,
+                    token,
+                    request.getDeviceId(),
+                    request.getDeviceType(),
+                    request.getDeviceName(),
+                    request.getDeviceModel()
             );
 
             // 返回登录成功响应
             LoginResponse response = new LoginResponse(
-                user.getId(),
-                user.getEmail(),
-                user.getNickname(),
-                user.getAvatarUrl(),
-                userService.isAdmin(user),
-                token,
-                session.getExpiresAt(),
-                "登录成功"
+                    user.getId(),
+                    user.getEmail(),
+                    user.getNickname(),
+                    user.getAvatarUrl(),
+                    userService.isAdmin(user),
+                    token,
+                    session.getExpiresAt(),
+                    "登录成功"
             );
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new Response("LOGIN_ERROR", "登录失败: " + e.getMessage()));
+                    .body(new Response("LOGIN_ERROR", "登录失败: " + e.getMessage()));
         }
     }
 
@@ -203,7 +203,7 @@ public class AuthController {
             String email = jwtUtil.extractEmail(token);
             if (!jwtUtil.validateToken(token, email)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new Response("INVALID_TOKEN", "无效的令牌"));
+                        .body(new Response("INVALID_TOKEN", "无效的令牌"));
             }
 
             // 撤销会话
@@ -216,7 +216,7 @@ public class AuthController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new Response("LOGOUT_ERROR", "登出失败: " + e.getMessage()));
+                    .body(new Response("LOGOUT_ERROR", "登出失败: " + e.getMessage()));
         }
     }
 
@@ -231,7 +231,7 @@ public class AuthController {
             String email = jwtUtil.extractEmail(token);
             if (!jwtUtil.validateToken(token, email)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new Response("INVALID_TOKEN", "无效的令牌"));
+                        .body(new Response("INVALID_TOKEN", "无效的令牌"));
             }
 
             UUID userId = jwtUtil.extractUserId(token);
@@ -240,7 +240,7 @@ public class AuthController {
             // 验证旧密码
             if (!passwordUtil.checkPassword(request.getOldPassword(), user.getPasswordHash())) {
                 return ResponseEntity.badRequest()
-                    .body(new Response("INVALID_PASSWORD", "旧密码错误"));
+                        .body(new Response("INVALID_PASSWORD", "旧密码错误"));
             }
 
             // 更新密码
@@ -257,7 +257,7 @@ public class AuthController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new Response("PASSWORD_CHANGE_ERROR", "密码修改失败: " + e.getMessage()));
+                    .body(new Response("PASSWORD_CHANGE_ERROR", "密码修改失败: " + e.getMessage()));
         }
     }
 
@@ -271,7 +271,7 @@ public class AuthController {
             String email = jwtUtil.extractEmail(oldToken);
             if (!jwtUtil.validateToken(oldToken, email)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new Response("INVALID_TOKEN", "无效的令牌"));
+                        .body(new Response("INVALID_TOKEN", "无效的令牌"));
             }
 
             // 提取用户信息
@@ -288,7 +288,7 @@ public class AuthController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new Response("TOKEN_REFRESH_ERROR", "令牌刷新失败: " + e.getMessage()));
+                    .body(new Response("TOKEN_REFRESH_ERROR", "令牌刷新失败: " + e.getMessage()));
         }
     }
 
@@ -378,10 +378,72 @@ public class AuthController {
         return result;
     }
 
+    @PostMapping("/testEmail")
+    public Map<String, Object> sendEmail(String email) {
+        HashMap<String, Object> result = new HashMap<>();
+        try {
+            if (!isValidEmail(email)) {
+                result.put("success", false);
+                result.put("message", "邮箱格式不正确");
+                return result;
+            }
+            // 2. 检查是否可以发送（防止频繁发送）
+            if (!smsCodeService.canSend(email)) {
+                return replyCode(email);
+            }
+            //生成验证码
+            String code = smsCodeService.generateCode();
+            //发送邮件
+            boolean b = emailService.sendSimpleEmail(email, code);
+            //判断是否发送成功返回
+            return tet(b,result,email,code);
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", "系统错误: " + e.getMessage());
+        }
+
+        return result;
+    }
+    /**
+     * 验证码发送频繁回复
+     */
+    private Map<String,Object> replyCode(String email){
+        long remainingTime = smsCodeService.getRemainingSendTime(email);
+        HashMap<String, Object> hs = new HashMap<>();
+        hs.put("success",false);
+        hs.put("message","验证码发送过于频繁，请" + remainingTime + "秒后再试");
+        hs.put("remainingTime", remainingTime);
+        return hs;
+    }
+    /**
+     * 判断是否发送成功栟保存验证码到redis
+     */
+    private Map<String,Object> tet(boolean b,Map<String,Object> result,String email,String code){
+        if (b) {
+            // 5. 保存验证码到 Redis
+            smsCodeService.saveCode(email, code);
+
+            result.put("success", true);
+            result.put("message", "验证码发送成功");
+            result.put("expireTime", 300);
+        } else {
+            result.put("success", false);
+            result.put("message", "验证码发送失败，请稍后重试");
+        }
+        return result;
+    }
     /**
      * 验证手机号格式
      */
     private boolean isValidPhoneNumber(String phoneNumber) {
         return phoneNumber != null && phoneNumber.matches("^1[3-9]\\d{9}$");
+    }
+
+    /**
+     * 验证邮箱格式
+     */
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)+$");
     }
 }
