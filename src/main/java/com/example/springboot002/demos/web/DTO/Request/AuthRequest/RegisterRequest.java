@@ -1,4 +1,4 @@
-package com.example.springboot002.demos.web.DTO.Request;
+package com.example.springboot002.demos.web.DTO.Request.AuthRequest;
 
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotBlank;

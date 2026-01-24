@@ -1,4 +1,4 @@
-package com.example.springboot002.demos.web.Service;
+package com.example.springboot002.demos.web.Service.AuthService;
 
 import com.example.springboot002.demos.web.Entity.LoginSession;
 import com.example.springboot002.demos.web.Entity.User;

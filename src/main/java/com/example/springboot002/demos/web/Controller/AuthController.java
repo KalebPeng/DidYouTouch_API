@@ -1,13 +1,15 @@
 package com.example.springboot002.demos.web.Controller;
 
 import com.example.springboot002.demos.web.DTO.Request.*;
+import com.example.springboot002.demos.web.DTO.Request.AuthRequest.LoginRequest;
+import com.example.springboot002.demos.web.DTO.Request.AuthRequest.RegisterRequest;
 import com.example.springboot002.demos.web.DTO.Response.*;
 import com.example.springboot002.demos.web.Entity.User;
 import com.example.springboot002.demos.web.Entity.LoginSession;
-import com.example.springboot002.demos.web.Service.AliSmsService;
-import com.example.springboot002.demos.web.Service.SmsCodeService;
+import com.example.springboot002.demos.web.Service.AuthService.AliSmsService;
+import com.example.springboot002.demos.web.Service.AuthService.SmsCodeService;
 import com.example.springboot002.demos.web.Service.UserService;
-import com.example.springboot002.demos.web.Service.LoginSessionService;
+import com.example.springboot002.demos.web.Service.AuthService.LoginSessionService;
 import com.example.springboot002.demos.web.Util.JwtUtil;
 import com.example.springboot002.demos.web.Util.PasswordUtil;
 import io.swagger.v3.oas.annotations.Operation;
