@@ -1,6 +1,8 @@
 package com.example.springboot002.demos.web.Controller;
 
 import com.example.springboot002.demos.web.DTO.Request.*;
+import com.example.springboot002.demos.web.DTO.Request.AuthRequest.LoginRequest;
+import com.example.springboot002.demos.web.DTO.Request.AuthRequest.RegisterRequest;
 import com.example.springboot002.demos.web.DTO.Response.*;
 import com.example.springboot002.demos.web.Entity.User;
 import com.example.springboot002.demos.web.Entity.LoginSession;
@@ -53,13 +55,13 @@ public class AuthController {
             // 检查邮箱是否已存在
             if (userService.existsByEmail(request.getEmail())) {
                 return ResponseEntity.badRequest()
-                        .body(new Response("EMAIL_EXISTS", "该邮箱已被注册"));
+                    .body(new Response("EMAIL_EXISTS", "该邮箱已被注册"));
             }
 
             // 检查手机号是否已存在（如果提供）
             if (request.getPhone() != null && userService.existsByPhone(request.getPhone())) {
                 return ResponseEntity.badRequest()
-                        .body(new Response("PHONE_EXISTS", "该手机号已被注册"));
+                    .body(new Response("PHONE_EXISTS", "该手机号已被注册"));
             }
 
             // 创建新用户
@@ -99,18 +101,18 @@ public class AuthController {
 
             // 返回注册成功响应
             RegisterResponse response = new RegisterResponse(
-                    savedUser.getId(),
-                    savedUser.getEmail(),
-                    savedUser.getNickname(),
-                    token,
-                    "注册成功"
+                savedUser.getId(),
+                savedUser.getEmail(),
+                savedUser.getNickname(),
+                token,
+                "注册成功"
             );
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new Response("REGISTER_ERROR", "注册失败: " + e.getMessage()));
+                .body(new Response("REGISTER_ERROR", "注册失败: " + e.getMessage()));
         }
     }
 
@@ -122,19 +124,19 @@ public class AuthController {
             User user = userService.findByEmail(request.getEmail());
             if (user == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new Response("INVALID_CREDENTIALS", "邮箱或密码错误"));
+                    .body(new Response("INVALID_CREDENTIALS", "邮箱或密码错误"));
             }
 
             // 检查账户是否被锁定
             if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(LocalDateTime.now())) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new Response("ACCOUNT_LOCKED", "账户已被锁定，请稍后再试"));
+                    .body(new Response("ACCOUNT_LOCKED", "账户已被锁定，请稍后再试"));
             }
 
             // 检查账户是否激活
             if (!user.getIsActive()) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new Response("ACCOUNT_INACTIVE", "账户未激活"));
+                    .body(new Response("ACCOUNT_INACTIVE", "账户未激活"));
             }
 
             // 验证密码
@@ -146,11 +148,11 @@ public class AuthController {
                 if (user.getFailedLoginAttempts() >= 4) {
                     userService.lockAccount(user.getId(), 30);
                     return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                            .body(new Response("ACCOUNT_LOCKED", "登录失败次数过多，账户已被锁定30分钟"));
+                        .body(new Response("ACCOUNT_LOCKED", "登录失败次数过多，账户已被锁定30分钟"));
                 }
 
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new Response("INVALID_CREDENTIALS", "邮箱或密码错误"));
+                    .body(new Response("INVALID_CREDENTIALS", "邮箱或密码错误"));
             }
 
             // 重置失败登录次数
@@ -164,31 +166,31 @@ public class AuthController {
 
             // 创建登录会话
             LoginSession session = loginSessionService.createSession(
-                    user,
-                    token,
-                    request.getDeviceId(),
-                    request.getDeviceType(),
-                    request.getDeviceName(),
-                    request.getDeviceModel()
+                user,
+                token,
+                request.getDeviceId(),
+                request.getDeviceType(),
+                request.getDeviceName(),
+                request.getDeviceModel()
             );
 
             // 返回登录成功响应
             LoginResponse response = new LoginResponse(
-                    user.getId(),
-                    user.getEmail(),
-                    user.getNickname(),
-                    user.getAvatarUrl(),
-                    userService.isAdmin(user),
-                    token,
-                    session.getExpiresAt(),
-                    "登录成功"
+                user.getId(),
+                user.getEmail(),
+                user.getNickname(),
+                user.getAvatarUrl(),
+                userService.isAdmin(user),
+                token,
+                session.getExpiresAt(),
+                "登录成功"
             );
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new Response("LOGIN_ERROR", "登录失败: " + e.getMessage()));
+                .body(new Response("LOGIN_ERROR", "登录失败: " + e.getMessage()));
         }
     }
 
@@ -203,7 +205,7 @@ public class AuthController {
             String email = jwtUtil.extractEmail(token);
             if (!jwtUtil.validateToken(token, email)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new Response("INVALID_TOKEN", "无效的令牌"));
+                    .body(new Response("INVALID_TOKEN", "无效的令牌"));
             }
 
             // 撤销会话
@@ -216,7 +218,7 @@ public class AuthController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new Response("LOGOUT_ERROR", "登出失败: " + e.getMessage()));
+                .body(new Response("LOGOUT_ERROR", "登出失败: " + e.getMessage()));
         }
     }
 
@@ -231,7 +233,7 @@ public class AuthController {
             String email = jwtUtil.extractEmail(token);
             if (!jwtUtil.validateToken(token, email)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new Response("INVALID_TOKEN", "无效的令牌"));
+                    .body(new Response("INVALID_TOKEN", "无效的令牌"));
             }
 
             UUID userId = jwtUtil.extractUserId(token);
@@ -240,7 +242,7 @@ public class AuthController {
             // 验证旧密码
             if (!passwordUtil.checkPassword(request.getOldPassword(), user.getPasswordHash())) {
                 return ResponseEntity.badRequest()
-                        .body(new Response("INVALID_PASSWORD", "旧密码错误"));
+                    .body(new Response("INVALID_PASSWORD", "旧密码错误"));
             }
 
             // 更新密码
@@ -257,7 +259,7 @@ public class AuthController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new Response("PASSWORD_CHANGE_ERROR", "密码修改失败: " + e.getMessage()));
+                .body(new Response("PASSWORD_CHANGE_ERROR", "密码修改失败: " + e.getMessage()));
         }
     }
 
@@ -271,7 +273,7 @@ public class AuthController {
             String email = jwtUtil.extractEmail(oldToken);
             if (!jwtUtil.validateToken(oldToken, email)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new Response("INVALID_TOKEN", "无效的令牌"));
+                    .body(new Response("INVALID_TOKEN", "无效的令牌"));
             }
 
             // 提取用户信息
@@ -288,7 +290,7 @@ public class AuthController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new Response("TOKEN_REFRESH_ERROR", "令牌刷新失败: " + e.getMessage()));
+                .body(new Response("TOKEN_REFRESH_ERROR", "令牌刷新失败: " + e.getMessage()));
         }
     }
 
