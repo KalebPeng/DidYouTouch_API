@@ -6,10 +6,10 @@ import com.example.springboot002.demos.web.DTO.Request.AuthRequest.RegisterReque
 import com.example.springboot002.demos.web.DTO.Response.*;
 import com.example.springboot002.demos.web.Entity.User;
 import com.example.springboot002.demos.web.Entity.LoginSession;
+import com.example.springboot002.demos.web.Service.*;
 import com.example.springboot002.demos.web.Service.AuthService.AliSmsService;
-import com.example.springboot002.demos.web.Service.AuthService.SmsCodeService;
-import com.example.springboot002.demos.web.Service.UserService;
 import com.example.springboot002.demos.web.Service.AuthService.LoginSessionService;
+import com.example.springboot002.demos.web.Service.AuthService.SmsCodeService;
 import com.example.springboot002.demos.web.Util.JwtUtil;
 import com.example.springboot002.demos.web.Util.PasswordUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,6 +47,9 @@ public class AuthController {
 
     @Autowired
     private SmsCodeService smsCodeService;
+
+    @Autowired
+    private EmailService emailService;
 
     @Operation(summary = "用户注册")
     @PostMapping("/register")
@@ -380,10 +383,72 @@ public class AuthController {
         return result;
     }
 
+    @PostMapping("/testEmail")
+    public Map<String, Object> sendEmail(String email) {
+        HashMap<String, Object> result = new HashMap<>();
+        try {
+            if (!isValidEmail(email)) {
+                result.put("success", false);
+                result.put("message", "邮箱格式不正确");
+                return result;
+            }
+            // 2. 检查是否可以发送（防止频繁发送）
+            if (!smsCodeService.canSend(email)) {
+                return replyCode(email);
+            }
+            //生成验证码
+            String code = smsCodeService.generateCode();
+            //发送邮件
+            boolean b = emailService.sendSimpleEmail(email, code);
+            //判断是否发送成功返回
+            return tet(b,result,email,code);
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", "系统错误: " + e.getMessage());
+        }
+
+        return result;
+    }
+    /**
+     * 验证码发送频繁回复
+     */
+    private Map<String,Object> replyCode(String email){
+        long remainingTime = smsCodeService.getRemainingSendTime(email);
+        HashMap<String, Object> hs = new HashMap<>();
+        hs.put("success",false);
+        hs.put("message","验证码发送过于频繁，请" + remainingTime + "秒后再试");
+        hs.put("remainingTime", remainingTime);
+        return hs;
+    }
+    /**
+     * 判断是否发送成功栟保存验证码到redis
+     */
+    private Map<String,Object> tet(boolean b,Map<String,Object> result,String email,String code){
+        if (b) {
+            // 5. 保存验证码到 Redis
+            smsCodeService.saveCode(email, code);
+
+            result.put("success", true);
+            result.put("message", "验证码发送成功");
+            result.put("expireTime", 300);
+        } else {
+            result.put("success", false);
+            result.put("message", "验证码发送失败，请稍后重试");
+        }
+        return result;
+    }
     /**
      * 验证手机号格式
      */
     private boolean isValidPhoneNumber(String phoneNumber) {
         return phoneNumber != null && phoneNumber.matches("^1[3-9]\\d{9}$");
+    }
+
+    /**
+     * 验证邮箱格式
+     */
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\\.[a-zA-Z0-9_-]+)+$");
     }
 }
